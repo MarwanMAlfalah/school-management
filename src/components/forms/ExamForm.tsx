@@ -3,7 +3,11 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import InputField from "../InputField";
-import { examSchema, ExamSchema, subjectSchema } from "@/lib/formValidationSchemas";
+import {
+  examSchema,
+  ExamSchema,
+  ExamSchemaInput,
+} from "@/lib/formValidationSchemas";
 import { createExam, createSubject, updateSubject, updatExam } from "@/lib/actions";
 import { useFormState } from "react-dom";
 import { toast } from "react-toastify";
@@ -24,9 +28,9 @@ const ExamForm = ({
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<ExamSchema>({
-    resolver: zodResolver(examSchema),
-  });
+  } = useForm<ExamSchemaInput, any, ExamSchema>({
+  resolver: zodResolver(examSchema),
+});
 
   // AFTER REACT 19 IT'LL BE USEACTIONSTATE
 
@@ -53,7 +57,7 @@ const ExamForm = ({
     }
   }, [state, router, type, setOpen]);
 
-  const lessons = relatedData?.teachers || [];
+  const lessons = relatedData?.lessons || [];
   return (
     <form className="flex flex-col gap-8" onSubmit={onSubmit}>
       <h1 className="text-xl font-semibold">
@@ -100,7 +104,7 @@ const ExamForm = ({
           <select
             className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
             {...register("lessonId")}
-            defaultValue={data?.teachers}
+            defaultValue={data?.lessonId}
           >
             {lessons.map(
               (lesson: { id: number; name: string; }) => (

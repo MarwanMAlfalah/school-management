@@ -1,15 +1,17 @@
 import { FieldError } from "react-hook-form";
 
 type InputFieldProps = {
-    label:string;
-    type?:string;
-    register:any;
-    name:string;
-    defaultValue?:string;
-    error?:FieldError;
-    hidden?:boolean;
-    inputProps?:React.InputHTMLAttributes<HTMLInputElement>;
-}
+  label: string;
+  type?: string;
+  register: any;
+  name: string;
+  defaultValue?: string | number;
+  error?: {
+    message?: string;
+  };
+  hidden?: boolean;
+  inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
+};
 
 const InputField = ({
     label,

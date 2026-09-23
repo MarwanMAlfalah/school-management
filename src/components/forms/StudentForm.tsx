@@ -8,8 +8,7 @@ import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import {
   studentSchema,
   StudentSchema,
-  teacherSchema,
-  TeacherSchema,
+  StudentSchemaInput,
 } from "@/lib/formValidationSchemas";
 import { useFormState } from "react-dom";
 import {
@@ -37,9 +36,9 @@ const StudentForm = ({
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<StudentSchema>({
-    resolver: zodResolver(studentSchema),
-  });
+  } = useForm<StudentSchemaInput, any, StudentSchema>({
+  resolver: zodResolver(studentSchema),
+});
 
   const [img, setImg] = useState<any>();
 

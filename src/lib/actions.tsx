@@ -237,12 +237,15 @@ export const deleteTeacher = async (
   data: FormData,
 ) => {
   const id = data.get("id") as string;
+
   try {
-    await clerkClient.users.deleteUser(id);
+    const client = await clerkClient();
+
+    await client.users.deleteUser(id);
 
     await prisma.teacher.delete({
       where: {
-        id: id,
+        id,
       },
     });
 
@@ -359,7 +362,9 @@ export const deleteStudent = async (
 ) => {
   const id = data.get("id") as string;
   try {
-    await clerkClient.users.deleteUser(id);
+    const client = await clerkClient();
+
+    await client.users.deleteUser(id);
 
     await prisma.student.delete({
       where: {
@@ -383,18 +388,18 @@ export const createExam = async (
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
   try {
-    if(role==="teacher"){
-    const teacherLesson = await prisma.lesson.findFirst({
-      where: {
-        teacherId: userId!,
-        id: data.lessonId,
-      },
-    });
+    if (role === "teacher") {
+      const teacherLesson = await prisma.lesson.findFirst({
+        where: {
+          teacherId: userId!,
+          id: data.lessonId,
+        },
+      });
 
-    if (!teacherLesson) {
-      return { success: false, error: true };
+      if (!teacherLesson) {
+        return { success: false, error: true };
+      }
     }
-}
     await prisma.exam.create({
       data: {
         title: data.title,
@@ -420,24 +425,22 @@ export const updatExam = async (
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
   try {
+    if (role === "teacher") {
+      const teacherLesson = await prisma.lesson.findFirst({
+        where: {
+          teacherId: userId!,
+          id: data.lessonId,
+        },
+      });
 
-    if(role==="teacher"){
-
-        const teacherLesson = await prisma.lesson.findFirst({
-            where: {
-                teacherId: userId!,
-                id: data.lessonId,
-            },
-        });
-        
-        if (!teacherLesson) {
-            return { success: false, error: true };
-        }
+      if (!teacherLesson) {
+        return { success: false, error: true };
+      }
     }
     await prisma.exam.update({
-        where:{
-            id:data.id,
-        },
+      where: {
+        id: data.id,
+      },
       data: {
         title: data.title,
         startTime: data.startTime,

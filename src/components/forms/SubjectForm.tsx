@@ -3,7 +3,11 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import InputField from "../InputField";
-import { subjectSchema } from "@/lib/formValidationSchemas";
+import {
+  subjectSchema,
+  SubjectSchema,
+  SubjectSchemaInput,
+} from "@/lib/formValidationSchemas";
 import { createSubject, updateSubject } from "@/lib/actions";
 import { useFormState } from "react-dom";
 import { toast } from "react-toastify";
@@ -24,9 +28,9 @@ const SubjectForm = ({
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<SubjectSchema>({
-    resolver: zodResolver(subjectSchema),
-  });
+  } = useForm<SubjectSchemaInput, any, SubjectSchema>({
+  resolver: zodResolver(subjectSchema),
+});
 
   // AFTER REACT 19 IT'LL BE USEACTIONSTATE
 

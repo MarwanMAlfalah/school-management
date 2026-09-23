@@ -5,7 +5,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import InputField from "../InputField";
 import Image from "next/image";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
-import { teacherSchema, TeacherSchema } from "@/lib/formValidationSchemas";
+import {
+  teacherSchema,
+  TeacherSchema,
+  TeacherSchemaInput,
+} from "@/lib/formValidationSchemas";
 import { useFormState } from "react-dom";
 import { createTeacher, updateTeacher } from "@/lib/actions";
 import { useRouter } from "next/navigation";
@@ -27,9 +31,9 @@ const TeacherForm = ({
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<TeacherSchema>({
-    resolver: zodResolver(teacherSchema),
-  });
+  } = useForm<TeacherSchemaInput, any, TeacherSchema>({
+  resolver: zodResolver(teacherSchema),
+});
 
   const [img, setImg] = useState<any>();
 
