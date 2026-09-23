@@ -5,7 +5,7 @@ import TableSearch from "@/components/TableSearch";
 import { Announcement, Class, Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
-import { currentUserId, role } from "@/lib/utils";
+import { getAuthContext } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -18,6 +18,7 @@ const AnnouncementListPage = async ({
 }: {
   searchParams: { [key: string]: string | undefined };
 }) => {
+  const { role, userId: currentUserId } = await getAuthContext();
 
   
   

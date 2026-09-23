@@ -5,26 +5,18 @@ import TableSearch from "@/components/TableSearch";
 import { Class, Event, Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
-// import { role } from "@/lib/utils";
+import { getAuthContext } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
-import { auth } from "@clerk/nextjs/server";
 
 type EventList = Event & { class: Class };
-
-const { userId, sessionClaims } = await auth();
-
-const role = (sessionClaims?.metadata as { role?: string } | undefined)?.role;
-
-const currentUserId = userId;
-
-console.log("EVENT ROLE:", role);
 
 const EventListPage = async ({
   searchParams,
 }: {
   searchParams: { [key: string]: string | undefined };
 }) => {
+  const { role, userId: currentUserId } = await getAuthContext();
   const columns = [
     {
       header: "Title",

@@ -11,8 +11,7 @@ import {
 } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
-import { currentUserId, role } from "@/lib/utils";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { getAuthContext } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -24,89 +23,92 @@ type AssignmentList = Assignment & {
   };
 };
 
-const columns = [
-  {
-    header: "Subject Name",
-    accessor: "name",
-  },
-  {
-    header: "Class",
-    accessor: "class",
-    className: "hidden md:table-cell",
-  },
-  {
-    header: "Teacher",
-    accessor: "teacher",
-    className: "hidden md:table-cell",
-  },
-  {
-    header: "Due Date",
-    accessor: "dueDate",
-    className: "hidden md:table-cell",
-  },
-  ...(role === "admin" || role === "teacher" 
-    ? [
-        {
-    header: "Actions",
-    accessor: "action",
-  },
-]
- : []),
-];
-
-const renderRow = (item: AssignmentList) => (
-  <tr
-    key={item.id}
-    className="border-b border-gray-200 text-sm even:bg-slate-50 hover:bg-lamaPurpleLight"
-  >
-    <td className="flex items-center gap-4 p-4">
-      <div className="flex flex-col">
-        <h3 className="font-semibold">{item.lesson.subject.name}</h3>
-      </div>
-    </td>
-
-    <td className="hidden px-4 md:table-cell">{item.lesson.class.name}</td>
-
-    <td className="hidden px-4 md:table-cell">
-      {item.lesson.teacher.name + " " + item.lesson.teacher.surname}
-    </td>
-
-    <td className="hidden px-4 md:table-cell">
-      {new Intl.DateTimeFormat("en-US").format(item.dueDate)}
-    </td>
-
-    <td className="px-4">
-      <div className="flex items-center gap-2">
-        {/* <Link href={`/list/teachers/${item.id}`}>
-          <button
-            type="button"
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-lamaSky"
-            aria-label={`View ${item.subject}`}
-          >
-            <Image
-              src="/edit.png"
-              alt=""
-              width={16}
-              height={16}
-            />
-          </button>
-        </Link> */}
-
-        {(role === "admin" || role === "teacher") && (
-          <>
-            <FormModel table="assignment" type="update" data={item} />
-            <FormModel table="assignment" type="delete" id={item.id} />
-          </>
-        )}
-      </div>
-    </td>
-  </tr>
-);
 const AssignmentListPage = async ({
   searchParams,
 }: {
   searchParams: { [key: string]: string | undefined };
 }) => {
+  const { role, userId: currentUserId } = await getAuthContext();
+
+  const columns = [
+    {
+      header: "Subject Name",
+      accessor: "name",
+    },
+    {
+      header: "Class",
+      accessor: "class",
+      className: "hidden md:table-cell",
+    },
+    {
+      header: "Teacher",
+      accessor: "teacher",
+      className: "hidden md:table-cell",
+    },
+    {
+      header: "Due Date",
+      accessor: "dueDate",
+      className: "hidden md:table-cell",
+    },
+    ...(role === "admin" || role === "teacher" 
+      ? [
+          {
+      header: "Actions",
+      accessor: "action",
+    },
+  ]
+   : []),
+  ];
+
+  const renderRow = (item: AssignmentList) => (
+    <tr
+      key={item.id}
+      className="border-b border-gray-200 text-sm even:bg-slate-50 hover:bg-lamaPurpleLight"
+    >
+      <td className="flex items-center gap-4 p-4">
+        <div className="flex flex-col">
+          <h3 className="font-semibold">{item.lesson.subject.name}</h3>
+        </div>
+      </td>
+
+      <td className="hidden px-4 md:table-cell">{item.lesson.class.name}</td>
+
+      <td className="hidden px-4 md:table-cell">
+        {item.lesson.teacher.name + " " + item.lesson.teacher.surname}
+      </td>
+
+      <td className="hidden px-4 md:table-cell">
+        {new Intl.DateTimeFormat("en-US").format(item.dueDate)}
+      </td>
+
+      <td className="px-4">
+        <div className="flex items-center gap-2">
+          {/* <Link href={`/list/teachers/${item.id}`}>
+            <button
+              type="button"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-lamaSky"
+              aria-label={`View ${item.subject}`}
+            >
+              <Image
+                src="/edit.png"
+                alt=""
+                width={16}
+                height={16}
+              />
+            </button>
+          </Link> */}
+
+          {(role === "admin" || role === "teacher") && (
+            <>
+              <FormModel table="assignment" type="update" data={item} />
+              <FormModel table="assignment" type="delete" id={item.id} />
+            </>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+
   const { page, ...queryParams } = searchParams;
 
   const p = page ? parseInt(page) : 1;

@@ -6,85 +6,87 @@ import TableSearch from "@/components/TableSearch";
 import { Prisma, Subject, Teacher } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
-import { role } from "@/lib/utils";
+import { getAuthContext } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 
 type SubjectList = Subject & { teachers: Teacher[] };
-
-const columns = [
-  {
-    header: "Subject Name",
-    accessor: "name",
-  },
-  {
-    header: "Teachers",
-    accessor: "teachers",
-    className: "hidden md:table-cell",
-  },
-  {
-    header: "Actions",
-    accessor: "action",
-  },
-];
-
-const renderRow = (item: SubjectList) => (
-  <tr
-    key={item.id}
-    className="border-b border-gray-200 text-sm even:bg-slate-50 hover:bg-lamaPurpleLight"
-  >
-    <td className="flex items-center gap-4 p-4">{item.name}</td>
-
-    <td className="hidden md:table-cell">
-      {item.teachers.map((teacher) => teacher.name).join(", ")}
-    </td>
-
-    <td>
-      <div className="flex items-center gap-2">
-        {/* <Link href={`/list/teachers/${item.id}`}>
-          <button
-            type="button"
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-lamaSky"
-            aria-label={`View ${item.name}`}
-          >
-            <Image
-              src="/edit.png"
-              alt=""
-              width={16}
-              height={16}
-            />
-          </button>
-        </Link> */}
-
-        {role === "admin" && (
-          <>
-            <FormContainer table="subject" type="update" data={item} />
-            <FormContainer table="subject" type="delete" id={item.id} />
-          </>
-
-          // <button
-          //   type="button"
-          //   className="flex h-7 w-7 items-center justify-center rounded-full bg-lamaPurple"
-          //   aria-label={`Delete ${item.name}`}
-          // >
-          //   <Image
-          //     src="/delete.png"
-          //     alt=""
-          //     width={16}
-          //     height={16}
-          //   />
-          // </button>
-        )}
-      </div>
-    </td>
-  </tr>
-);
 
 const SubjectListPage = async ({
   searchParams,
 }: {
   searchParams: { [key: string]: string | undefined };
 }) => {
+  const { role } = await getAuthContext();
+
+  const columns = [
+    {
+      header: "Subject Name",
+      accessor: "name",
+    },
+    {
+      header: "Teachers",
+      accessor: "teachers",
+      className: "hidden md:table-cell",
+    },
+    {
+      header: "Actions",
+      accessor: "action",
+    },
+  ];
+
+  const renderRow = (item: SubjectList) => (
+    <tr
+      key={item.id}
+      className="border-b border-gray-200 text-sm even:bg-slate-50 hover:bg-lamaPurpleLight"
+    >
+      <td className="flex items-center gap-4 p-4">{item.name}</td>
+
+      <td className="hidden md:table-cell">
+        {item.teachers.map((teacher) => teacher.name).join(", ")}
+      </td>
+
+      <td>
+        <div className="flex items-center gap-2">
+          {/* <Link href={`/list/teachers/${item.id}`}>
+            <button
+              type="button"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-lamaSky"
+              aria-label={`View ${item.name}`}
+            >
+              <Image
+                src="/edit.png"
+                alt=""
+                width={16}
+                height={16}
+              />
+            </button>
+          </Link> */}
+
+          {role === "admin" && (
+            <>
+              <FormContainer table="subject" type="update" data={item} />
+              <FormContainer table="subject" type="delete" id={item.id} />
+            </>
+
+            // <button
+            //   type="button"
+            //   className="flex h-7 w-7 items-center justify-center rounded-full bg-lamaPurple"
+            //   aria-label={`Delete ${item.name}`}
+            // >
+            //   <Image
+            //     src="/delete.png"
+            //     alt=""
+            //     width={16}
+            //     height={16}
+            //   />
+            // </button>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+
   const { page, ...queryParams } = searchParams;
 
   const p = page ? parseInt(page) : 1;
