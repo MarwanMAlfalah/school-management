@@ -13,7 +13,6 @@ import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
 import { getAuthContext } from "@/lib/utils";
 import Image from "next/image";
-import Link from "next/link";
 
 type ExamList = Exam & {
   lesson: {
@@ -32,8 +31,13 @@ const ExamListPage = async ({
 
   const columns = [
     {
-      header: "Subject Name",
-      accessor: "name",
+      header: "Exam Title",
+      accessor: "title",
+    },
+    {
+      header: "Subject",
+      accessor: "subject",
+      className: "hidden md:table-cell",
     },
     {
       header: "Class",
@@ -67,9 +71,11 @@ const ExamListPage = async ({
     >
       <td className="flex items-center gap-4 p-4">
         <div className="flex flex-col">
-          <h3 className="font-semibold">{item.lesson.subject.name}</h3>
+          <h3 className="font-semibold">{item.title}</h3>
         </div>
       </td>
+
+      <td className="hidden px-4 md:table-cell">{item.lesson.subject.name}</td>
 
       <td className="hidden px-4 md:table-cell">{item.lesson.class.name}</td>
 
@@ -142,9 +148,21 @@ const ExamListPage = async ({
             query.lesson.teacherId = value;
             break;
           case "search":
-            query.lesson.subject = {
-              name: { contains: value, mode: "insensitive" },
-            };
+            query.OR = [
+              {
+                title: {
+                  contains: value,
+                  mode: "insensitive",
+                },
+              },
+              {
+                lesson: {
+                  subject: {
+                    name: { contains: value, mode: "insensitive" },
+                  },
+                },
+              },
+            ];
             break;
           default:
             break;
@@ -194,6 +212,9 @@ const ExamListPage = async ({
             class: { select: { name: true } },
           },
         },
+      },
+      orderBy: {
+        id: "desc",
       },
       take: ITEM_PER_PAGE,
       skip: ITEM_PER_PAGE * (p - 1),

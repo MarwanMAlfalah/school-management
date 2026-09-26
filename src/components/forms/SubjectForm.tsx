@@ -11,7 +11,7 @@ import {
 import { createSubject, updateSubject } from "@/lib/actions";
 import { useFormState } from "react-dom";
 import { toast } from "react-toastify";
-import { Dispatch, SetStateAction, useEffect } from "react";
+import { Dispatch, SetStateAction, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 const SubjectForm = ({
   type,
@@ -33,29 +33,35 @@ const SubjectForm = ({
 });
 
   // AFTER REACT 19 IT'LL BE USEACTIONSTATE
+  const [isPending, startTransition] = useTransition();
 
   const [state, formAction] = useFormState(
     type === "create" ? createSubject : updateSubject,
     {
       success: false,
       error: false,
+      message: undefined,
     },
   );
 
-  const onSubmit = handleSubmit((data) => {
-    console.log(data);
-    formAction(data);
+  const onSubmit = handleSubmit((formData) => {
+    console.log(formData);
+    startTransition(() => {
+      formAction(formData);
+    });
   });
 
   const router = useRouter();
 
   useEffect(() => {
     if (state.success) {
-      toast(`Subject has been ${type === "create" ? "created" : "updated"}!`);
+      toast.success(
+        `Subject has been ${type === "create" ? "created" : "updated"}!`,
+      );
       setOpen(false);
       router.refresh();
     }
-  }, [state, router, type, setOpen]);
+  }, [state.success, router, type, setOpen]);
 
   const teachers = relatedData?.teachers || [];
   return (
@@ -88,7 +94,9 @@ const SubjectForm = ({
             multiple
             className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
             {...register("teachers")}
-            defaultValue={data?.teachers}
+            defaultValue={data?.teachers?.map((teacher: { id: string }) =>
+              String(teacher.id),
+            )}
           >
             {teachers.map(
               (teacher: { id: string; name: string; surname: string }) => (
@@ -106,10 +114,15 @@ const SubjectForm = ({
         </div>
       </div>
       {state.error && (
-        <span className="text-red-500">Something went wrong!</span>
+        <span className="text-red-500">
+          {state.message || "Something went wrong!"}
+        </span>
       )}
-      <button className="bg-blue-400 text-white p-2 rounded-md">
-        {type === "create" ? "Create" : "Update"}
+      <button
+        className="bg-blue-400 text-white p-2 rounded-md disabled:opacity-60"
+        disabled={isPending}
+      >
+        {isPending ? "Saving..." : type === "create" ? "Create" : "Update"}
       </button>
     </form>
   );

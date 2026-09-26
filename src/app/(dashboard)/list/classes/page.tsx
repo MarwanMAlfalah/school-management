@@ -9,7 +9,7 @@ import { getAuthContext } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 
-type ClassList = Class & { supervisor: Teacher };
+type ClassList = Class & { supervisor: Teacher | null };
 
 const ClassesListPage = async ({
   searchParams,
@@ -62,7 +62,9 @@ const ClassesListPage = async ({
       <td className="hidden px-4 md:table-cell">{item.capacity}</td>
       <td className="hidden px-4 md:table-cell">{item.name[0]}</td>
       <td className="hidden px-4 md:table-cell">
-        {item.supervisor.name + " " + item.supervisor.surname}
+        {item.supervisor
+          ? item.supervisor.name + " " + item.supervisor.surname
+          : "-"}
       </td>
 
       <td className="px-4">

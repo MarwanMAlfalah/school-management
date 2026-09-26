@@ -25,9 +25,14 @@ const uniqueFieldMessageMap: Record<string, string> = {
   email: "Email is already in use.",
   username: "Username is already in use.",
   phone: "Phone number is already in use.",
+  name: "Name is already in use.",
+  title: "Title is already in use.",
 };
 
-const getPrismaErrorMessage = (err: unknown) => {
+const getPrismaErrorMessage = (
+  err: unknown,
+  uniqueMessages: Record<string, string> = uniqueFieldMessageMap,
+) => {
   if (
     err instanceof Prisma.PrismaClientKnownRequestError &&
     err.code === "P2002"
@@ -36,10 +41,24 @@ const getPrismaErrorMessage = (err: unknown) => {
     const fields = Array.isArray(target) ? target : [target];
     const field = fields.find(
       (targetField): targetField is string =>
-        typeof targetField === "string" && targetField in uniqueFieldMessageMap,
+        typeof targetField === "string" && targetField in uniqueMessages,
     );
 
-    return field ? uniqueFieldMessageMap[field] : "A unique value is already in use.";
+    return field ? uniqueMessages[field] : "A unique value is already in use.";
+  }
+
+  if (
+    err instanceof Prisma.PrismaClientKnownRequestError &&
+    err.code === "P2003"
+  ) {
+    return "Invalid related record.";
+  }
+
+  if (
+    err instanceof Prisma.PrismaClientKnownRequestError &&
+    err.code === "P2014"
+  ) {
+    return "This record is still used by related records.";
   }
 };
 
@@ -90,8 +109,10 @@ const getClerkErrorMessage = (err: unknown) => {
   }
 };
 
-const getActionErrorMessage = (err: unknown) =>
-  getPrismaErrorMessage(err) ?? getClerkErrorMessage(err);
+const getActionErrorMessage = (
+  err: unknown,
+  uniqueMessages?: Record<string, string>,
+) => getPrismaErrorMessage(err, uniqueMessages) ?? getClerkErrorMessage(err);
 
 const getUniqueTeacherMessage = async (data: TeacherSchema) => {
   const email = normalizeOptionalString(data.email);
@@ -216,7 +237,13 @@ export const createSubject = async (
     return { success: true, error: false };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return {
+      success: false,
+      error: true,
+      message: getActionErrorMessage(err, {
+        name: "Subject name is already in use.",
+      }),
+    };
   }
 };
 
@@ -241,7 +268,13 @@ export const updateSubject = async (
     return { success: true, error: false };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return {
+      success: false,
+      error: true,
+      message: getActionErrorMessage(err, {
+        name: "Subject name is already in use.",
+      }),
+    };
   }
 };
 
@@ -251,6 +284,29 @@ export const deleteSubject = async (
 ) => {
   const id = data.get("id") as string;
   try {
+    const subject = await prisma.subject.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        _count: {
+          select: {
+            lessons: true,
+          },
+        },
+      },
+    });
+
+    if (!subject) {
+      return { success: false, error: true, message: "Subject not found." };
+    }
+
+    if (subject._count.lessons > 0) {
+      return {
+        success: false,
+        error: true,
+        message: "Subject is still used by lessons.",
+      };
+    }
+
     await prisma.subject.delete({
       where: {
         id: parseInt(id),
@@ -261,8 +317,50 @@ export const deleteSubject = async (
     return { success: true, error: false };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return {
+      success: false,
+      error: true,
+      message: getActionErrorMessage(err),
+    };
   }
+};
+
+const normalizeClassSupervisorId = (supervisorId?: string | null) => {
+  const normalized = supervisorId?.trim();
+  return normalized ? normalized : null;
+};
+
+const getClassData = async (data: ClassSchema) => {
+  const supervisorId = normalizeClassSupervisorId(data.supervisorId);
+
+  const grade = await prisma.grade.findUnique({
+    where: { id: data.gradeId },
+    select: { id: true },
+  });
+
+  if (!grade) {
+    return { message: "Grade not found." };
+  }
+
+  if (supervisorId) {
+    const supervisor = await prisma.teacher.findUnique({
+      where: { id: supervisorId },
+      select: { id: true },
+    });
+
+    if (!supervisor) {
+      return { message: "Invalid supervisor." };
+    }
+  }
+
+  return {
+    data: {
+      name: data.name,
+      capacity: data.capacity,
+      gradeId: data.gradeId,
+      supervisorId,
+    },
+  };
 };
 
 export const createClass = async (
@@ -270,15 +368,27 @@ export const createClass = async (
   data: ClassSchema,
 ) => {
   try {
+    const classData = await getClassData(data);
+
+    if ("message" in classData) {
+      return { success: false, error: true, message: classData.message };
+    }
+
     await prisma.class.create({
-      data,
+      data: classData.data,
     });
 
     // revalidatePath("/list/class");
     return { success: true, error: false };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return {
+      success: false,
+      error: true,
+      message: getActionErrorMessage(err, {
+        name: "Class name is already in use.",
+      }),
+    };
   }
 };
 
@@ -287,18 +397,30 @@ export const updateClass = async (
   data: ClassSchema,
 ) => {
   try {
+    const classData = await getClassData(data);
+
+    if ("message" in classData) {
+      return { success: false, error: true, message: classData.message };
+    }
+
     await prisma.class.update({
       where: {
         id: data.id,
       },
-      data,
+      data: classData.data,
     });
 
     // revalidatePath("/list/class");
     return { success: true, error: false };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return {
+      success: false,
+      error: true,
+      message: getActionErrorMessage(err, {
+        name: "Class name is already in use.",
+      }),
+    };
   }
 };
 
@@ -308,6 +430,37 @@ export const deleteClass = async (
 ) => {
   const id = data.get("id") as string;
   try {
+    const classItem = await prisma.class.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        _count: {
+          select: {
+            students: true,
+            lessons: true,
+            events: true,
+            announcements: true,
+          },
+        },
+      },
+    });
+
+    if (!classItem) {
+      return { success: false, error: true, message: "Class not found." };
+    }
+
+    if (
+      classItem._count.students > 0 ||
+      classItem._count.lessons > 0 ||
+      classItem._count.events > 0 ||
+      classItem._count.announcements > 0
+    ) {
+      return {
+        success: false,
+        error: true,
+        message: "Class is still used by related records.",
+      };
+    }
+
     await prisma.class.delete({
       where: {
         id: parseInt(id),
@@ -318,7 +471,11 @@ export const deleteClass = async (
     return { success: true, error: false };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return {
+      success: false,
+      error: true,
+      message: getActionErrorMessage(err),
+    };
   }
 };
 
@@ -695,6 +852,10 @@ export const createExam = async (
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
   try {
+    if (role !== "admin" && role !== "teacher") {
+      return { success: false, error: true, message: "Not authorized." };
+    }
+
     if (role === "teacher") {
       const teacherLesson = await prisma.lesson.findFirst({
         where: {
@@ -704,9 +865,19 @@ export const createExam = async (
       });
 
       if (!teacherLesson) {
-        return { success: false, error: true };
+        return { success: false, error: true, message: "Not authorized." };
+      }
+    } else {
+      const lesson = await prisma.lesson.findUnique({
+        where: { id: data.lessonId },
+        select: { id: true },
+      });
+
+      if (!lesson) {
+        return { success: false, error: true, message: "Lesson not found." };
       }
     }
+
     await prisma.exam.create({
       data: {
         title: data.title,
@@ -720,18 +891,50 @@ export const createExam = async (
     return { success: true, error: false };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return {
+      success: false,
+      error: true,
+      message: getActionErrorMessage(err),
+    };
   }
 };
 
-export const updatExam = async (
+export const updateExam = async (
   currentState: CurrentState,
   data: ExamSchema,
 ) => {
+  if (!data.id) {
+    return { success: false, error: true, message: "Exam not found." };
+  }
+
   const { userId, sessionClaims } = await auth();
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
   try {
+    if (role !== "admin" && role !== "teacher") {
+      return { success: false, error: true, message: "Not authorized." };
+    }
+
+    const existingExam = await prisma.exam.findUnique({
+      where: { id: data.id },
+      select: {
+        id: true,
+        lesson: {
+          select: {
+            teacherId: true,
+          },
+        },
+      },
+    });
+
+    if (!existingExam) {
+      return { success: false, error: true, message: "Exam not found." };
+    }
+
+    if (role === "teacher" && existingExam.lesson.teacherId !== userId) {
+      return { success: false, error: true, message: "Not authorized." };
+    }
+
     if (role === "teacher") {
       const teacherLesson = await prisma.lesson.findFirst({
         where: {
@@ -741,9 +944,19 @@ export const updatExam = async (
       });
 
       if (!teacherLesson) {
-        return { success: false, error: true };
+        return { success: false, error: true, message: "Not authorized." };
+      }
+    } else {
+      const lesson = await prisma.lesson.findUnique({
+        where: { id: data.lessonId },
+        select: { id: true },
+      });
+
+      if (!lesson) {
+        return { success: false, error: true, message: "Lesson not found." };
       }
     }
+
     await prisma.exam.update({
       where: {
         id: data.id,
@@ -760,7 +973,11 @@ export const updatExam = async (
     return { success: true, error: false };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return {
+      success: false,
+      error: true,
+      message: getActionErrorMessage(err),
+    };
   }
 };
 
@@ -774,10 +991,33 @@ export const deleteExam = async (
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
   try {
+    if (role !== "admin" && role !== "teacher") {
+      return { success: false, error: true, message: "Not authorized." };
+    }
+
+    const exam = await prisma.exam.findUnique({
+      where: { id: parseInt(id) },
+      select: {
+        id: true,
+        lesson: {
+          select: {
+            teacherId: true,
+          },
+        },
+      },
+    });
+
+    if (!exam) {
+      return { success: false, error: true, message: "Exam not found." };
+    }
+
+    if (role === "teacher" && exam.lesson.teacherId !== userId) {
+      return { success: false, error: true, message: "Not authorized." };
+    }
+
     await prisma.exam.delete({
       where: {
         id: parseInt(id),
-        ...(role === "teacher" ? { lesson: { teacherId: userId! } } : {}),
       },
     });
 
@@ -785,6 +1025,10 @@ export const deleteExam = async (
     return { success: true, error: false };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return {
+      success: false,
+      error: true,
+      message: getActionErrorMessage(err),
+    };
   }
 };

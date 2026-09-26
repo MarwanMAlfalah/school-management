@@ -15,6 +15,12 @@ import { useFormState } from "react-dom";
 import { toast } from "react-toastify";
 import { FormContainerProps } from "./FormContainer";
 
+type ActionState = { success: boolean; error: boolean; message?: string };
+type DeleteAction = (
+  state: ActionState,
+  payload: FormData,
+) => Promise<ActionState>;
+
 // import TeacherForm from "./forms/TeacherForm";
 // import StudentForm from "./forms/StudentForm";
 
@@ -138,10 +144,14 @@ const FormModel = ({
   const [open, setOpen] = useState(false);
 
   const Form = () => {
-    const [state, formAction] = useFormState(deleteActionMap[table], {
-      success: false,
-      error: false,
-    });
+    const [state, formAction] = useFormState<ActionState, FormData>(
+      deleteActionMap[table] as DeleteAction,
+      {
+        success: false,
+        error: false,
+        message: undefined,
+      },
+    );
 
     const router = useRouter();
 
@@ -156,13 +166,22 @@ const FormModel = ({
     }, [state.success, router, table]);
     return type === "delete" && id ? (
       <form action={formAction} className="p-4 flex flex-col gap-4">
-        <input type="text | number" name="id" value={id} hidden />
+        <input
+          type="hidden" 
+          name="id"
+          defaultValue={String(id)}
+        />
         <span className="text-center font-medium">
           All data will be lost. Are you sure you want to delete this {table}?
         </span>
         <button className="bg-red-700 text-white py-2 px-4 rounded-md border-none w-max self-center">
           Delete
         </button>
+        {state.error && (
+          <span className="text-center text-sm text-red-500">
+            {state.message || "Something went wrong!"}
+          </span>
+        )}
       </form>
     ) : type === "create" || type === "update" ? (
       forms[table](setOpen, type, data, relatedData)

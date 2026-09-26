@@ -8,11 +8,27 @@ import {
   ExamSchema,
   ExamSchemaInput,
 } from "@/lib/formValidationSchemas";
-import { createExam, createSubject, updateSubject, updatExam } from "@/lib/actions";
+import { createExam, updateExam } from "@/lib/actions";
 import { useFormState } from "react-dom";
 import { toast } from "react-toastify";
-import { Dispatch, SetStateAction, useEffect } from "react";
+import { Dispatch, SetStateAction, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
+
+const formatDateTimeLocal = (value?: Date | string) => {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return offsetDate.toISOString().slice(0, 16);
+};
+
 const ExamForm = ({
   type,
   data,
@@ -33,29 +49,35 @@ const ExamForm = ({
 });
 
   // AFTER REACT 19 IT'LL BE USEACTIONSTATE
+  const [isPending, startTransition] = useTransition();
 
   const [state, formAction] = useFormState(
-    type === "create" ? createExam : updatExam,
+    type === "create" ? createExam : updateExam,
     {
       success: false,
       error: false,
+      message: undefined,
     },
   );
 
-  const onSubmit = handleSubmit((data) => {
-    console.log(data);
-    formAction(data);
+  const onSubmit = handleSubmit((formData) => {
+    console.log(formData);
+    startTransition(() => {
+      formAction(formData);
+    });
   });
 
   const router = useRouter();
 
   useEffect(() => {
     if (state.success) {
-      toast(`Exam has been ${type === "create" ? "created" : "updated"}!`);
+      toast.success(
+        `Exam has been ${type === "create" ? "created" : "updated"}!`,
+      );
       setOpen(false);
       router.refresh();
     }
-  }, [state, router, type, setOpen]);
+  }, [state.success, router, type, setOpen]);
 
   const lessons = relatedData?.lessons || [];
   return (
@@ -75,7 +97,7 @@ const ExamForm = ({
         <InputField
           label="Start Date"
           name="startTime"
-          defaultValue={data?.startTime}
+          defaultValue={formatDateTimeLocal(data?.startTime)}
           register={register}
           error={errors?.startTime}
           type="datetime-local"
@@ -83,7 +105,7 @@ const ExamForm = ({
         <InputField
           label="End Date"
           name="endTime"
-          defaultValue={data?.endTime}
+          defaultValue={formatDateTimeLocal(data?.endTime)}
           register={register}
           error={errors?.endTime}
           type="datetime-local"
@@ -122,10 +144,15 @@ const ExamForm = ({
         </div>
       </div>
       {state.error && (
-        <span className="text-red-500">Something went wrong!</span>
+        <span className="text-red-500">
+          {state.message || "Something went wrong!"}
+        </span>
       )}
-      <button className="bg-blue-400 text-white p-2 rounded-md">
-        {type === "create" ? "Create" : "Update"}
+      <button
+        className="bg-blue-400 text-white p-2 rounded-md disabled:opacity-60"
+        disabled={isPending}
+      >
+        {isPending ? "Saving..." : type === "create" ? "Create" : "Update"}
       </button>
     </form>
   );

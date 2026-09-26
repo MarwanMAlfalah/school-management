@@ -9,7 +9,7 @@ import {
 } from "@/lib/formValidationSchemas";
 import { createClass, updateClass } from "@/lib/actions";
 import { useFormState } from "react-dom";
-import { Dispatch, SetStateAction, useEffect } from "react";
+import { Dispatch, SetStateAction, useEffect, useTransition } from "react";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 
@@ -33,29 +33,35 @@ const ClassForm = ({
 });
 
   // AFTER REACT 19 IT'LL BE USEACTIONSTATE
+  const [isPending, startTransition] = useTransition();
 
   const [state, formAction] = useFormState(
     type === "create" ? createClass : updateClass,
     {
       success: false,
       error: false,
+      message: undefined,
     },
   );
 
-  const onSubmit = handleSubmit((data) => {
-    console.log(data);
-    formAction(data);
+  const onSubmit = handleSubmit((formData) => {
+    console.log(formData);
+    startTransition(() => {
+      formAction(formData);
+    });
   });
 
   const router = useRouter();
 
   useEffect(() => {
     if (state.success) {
-      toast(`Subject has been ${type === "create" ? "created" : "updated"}!`);
+      toast.success(
+        `Class has been ${type === "create" ? "created" : "updated"}!`,
+      );
       setOpen(false);
       router.refresh();
     }
-  }, [state, router, type, setOpen]);
+  }, [state.success, router, type, setOpen]);
 
   const { teachers = [], grades = [] } = relatedData || {};
 
@@ -95,15 +101,12 @@ const ClassForm = ({
           <select
             className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
             {...register("supervisorId")}
-            defaultValue={data?.supervisorId}
+            defaultValue={data?.supervisorId || ""}
           >
+            <option value="">No supervisor</option>
             {teachers.map(
               (teacher: { id: string; name: string; surname: string }) => (
-                <option
-                  value={teacher.id}
-                  key={teacher.id}
-                  selected={data && teacher.id === data.supervisorId}
-                >
+                <option value={teacher.id} key={teacher.id}>
                   {teacher.name + " " + teacher.surname}
                 </option>
               ),
@@ -123,11 +126,7 @@ const ClassForm = ({
             defaultValue={data?.gradeId}
           >
             {grades.map((grade: { id: number; level: number }) => (
-              <option
-                value={grade.id}
-                key={grade.id}
-                // selected={data && grade.id === data.gradeId}
-              >
+              <option value={grade.id} key={grade.id}>
                 {grade.level}
               </option>
             ))}
@@ -140,10 +139,15 @@ const ClassForm = ({
         </div>
       </div>
       {state.error && (
-        <span className="text-red-500">Something went wrong!</span>
+        <span className="text-red-500">
+          {state.message || "Something went wrong!"}
+        </span>
       )}
-      <button className="bg-blue-400 text-white p-2 rounded-md">
-        {type === "create" ? "Create" : "Update"}
+      <button
+        className="bg-blue-400 text-white p-2 rounded-md disabled:opacity-60"
+        disabled={isPending}
+      >
+        {isPending ? "Saving..." : type === "create" ? "Create" : "Update"}
       </button>
     </form>
   );
