@@ -147,13 +147,13 @@ const FormModel = ({
 
     useEffect(() => {
       if (state.success) {
-        toast(
+        toast.success(
           `${table.charAt(0).toUpperCase() + table.slice(1)} has been deleted!`,
         );
         setOpen(false);
         router.refresh();
       }
-    }, [state, router]);
+    }, [state.success, router, table]);
     return type === "delete" && id ? (
       <form action={formAction} className="p-4 flex flex-col gap-4">
         <input type="text | number" name="id" value={id} hidden />

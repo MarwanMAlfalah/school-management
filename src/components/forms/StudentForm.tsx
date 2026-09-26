@@ -4,7 +4,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import InputField from "../InputField";
 import Image from "next/image";
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import {
+  Dispatch,
+  SetStateAction,
+  useEffect,
+  useState,
+  useTransition,
+} from "react";
 import {
   studentSchema,
   StudentSchema,
@@ -13,9 +19,7 @@ import {
 import { useFormState } from "react-dom";
 import {
   createStudent,
-  createTeacher,
   updateStudent,
-  updateTeacher,
 } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
@@ -41,6 +45,7 @@ const StudentForm = ({
 });
 
   const [img, setImg] = useState<any>();
+  const [isPending, startTransition] = useTransition();
 
   const [state, formAction] = useFormState(
     type === "create" ? createStudent : updateStudent,
@@ -50,23 +55,34 @@ const StudentForm = ({
     },
   );
 
-  const onSubmit = handleSubmit((data) => {
-    console.log(data);
-    formAction({ ...data, img: img?.secure_url });
+  const onSubmit = handleSubmit((formData) => {
+    console.log(formData);
+    startTransition(() => {
+      formAction({ ...formData, img: img?.secure_url ?? data?.img });
+    });
   });
 
   const router = useRouter();
 
   useEffect(() => {
     if (state.success) {
-      toast(`Student has been ${type === "create" ? "created" : "updated"}!`);
+      toast.success(
+        `Student has been ${type === "create" ? "created" : "updated"}!`,
+      );
       setOpen(false);
       router.refresh();
     }
-  }, [state, router, type, setOpen]);
+  }, [state.success, router, type, setOpen]);
 
 const grades = relatedData?.grades || [];
 const classes = relatedData?.classes || [];
+const imageStatus = img?.secure_url
+  ? type === "create"
+    ? "✓ Photo uploaded"
+    : "✓ New photo uploaded"
+  : data?.img
+    ? "Current photo saved"
+    : "";
 
   return (
     <form className="flex flex-col gap-8" onSubmit={onSubmit}>
@@ -104,7 +120,8 @@ const classes = relatedData?.classes || [];
       <span className="text-xs text-gray-400 font-medium">
         Personal Information
       </span>
-      <CldUploadWidget
+      <div className="flex flex-col gap-1">
+        <CldUploadWidget
           uploadPreset="school"
           onSuccess={(result, { widget }) => {
             setImg(result.info);
@@ -123,6 +140,10 @@ const classes = relatedData?.classes || [];
             );
           }}
         </CldUploadWidget>
+        {imageStatus && (
+          <span className="text-xs text-green-600">{imageStatus}</span>
+        )}
+      </div>
       <div className="flex justify-between flex-wrap gap-4">
         <InputField
           label="First Name"
@@ -252,19 +273,24 @@ const classes = relatedData?.classes || [];
               ),
             )}
           </select>
-          {errors.gradeId?.message && (
+          {errors.classId?.message && (
             <p className="text-xs text-red-400">
-              {errors.gradeId.message.toString()}
+              {errors.classId.message.toString()}
             </p>
           )}
         </div>
         
       </div>
       {state.error && (
-        <span className="text-red-500">Something went wrong!</span>
+        <span className="text-red-500">
+          {state.message || "Something went wrong!"}
+        </span>
       )}
-      <button className="bg-blue-400 text-white p-2 rounded-md">
-        {type === "create" ? "Create" : "Update"}
+      <button
+        className="bg-blue-400 text-white p-2 rounded-md disabled:opacity-60"
+        disabled={isPending}
+      >
+        {isPending ? "Saving..." : type === "create" ? "Create" : "Update"}
       </button>
     </form>
   );
